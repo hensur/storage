@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime/debug"
 	"strings"
 	"sync"
 	"time"
@@ -665,24 +666,25 @@ type store struct {
 	//   may undo that. So, holding graphLock is required throughout the duration of Shutdown(), and the duration of any mount
 	//   (but not unmount) calls.
 	// - Within this store object, protects access to some related in-memory state.
-	graphLock       *lockfile.LockFile
-	usernsLock      *lockfile.LockFile
-	graphRoot       string
-	graphOptions    []string
-	imageStoreDir   string
-	pullOptions     map[string]string
-	uidMap          []idtools.IDMap
-	gidMap          []idtools.IDMap
-	autoUsernsUser  string
-	autoNsMinSize   uint32
-	autoNsMaxSize   uint32
-	imageStore      rwImageStore
-	rwImageStores   []rwImageStore
-	roImageStores   []roImageStore
-	containerStore  rwContainerStore
-	digestLockRoot  string
-	disableVolatile bool
-	transientStore  bool
+	graphLock           *lockfile.LockFile
+	usernsLock          *lockfile.LockFile
+	graphRoot           string
+	graphOptions        []string
+	imageStoreDir       string
+	pullOptions         map[string]string
+	uidMap              []idtools.IDMap
+	gidMap              []idtools.IDMap
+	autoUsernsUser      string
+	autoNsMinSize       uint32
+	autoNsMaxSize       uint32
+	imageStore          rwImageStore
+	rwImageStores       []rwImageStore
+	roImageStores       []roImageStore
+	containerStore      rwContainerStore
+	digestLockRoot      string
+	disableVolatile     bool
+	transientStore      bool
+	startUsingTimestamp time.Time
 
 	// The following fields can only be accessed with graphLock held.
 	graphLockLastWrite lockfile.LastWrite
@@ -1018,12 +1020,17 @@ func (s *store) startUsingGraphDriver() error {
 		s.graphLockLastWrite = lastWrite
 	}
 
+	s.startUsingTimestamp = time.Now()
 	succeeded = true
 	return nil
 }
 
 // stopUsingGraphDriver releases graphLock obtained by startUsingGraphDriver.
 func (s *store) stopUsingGraphDriver() {
+	diff := time.Now().Sub(s.startUsingTimestamp)
+	if diff > time.Millisecond*200 {
+		debug.PrintStack()
+	}
 	s.graphLock.Unlock()
 }
 
