@@ -1029,6 +1029,7 @@ func (s *store) startUsingGraphDriver() error {
 func (s *store) stopUsingGraphDriver() {
 	diff := time.Now().Sub(s.startUsingTimestamp)
 	if diff > time.Millisecond*200 {
+		fmt.Printf("MW GRAPH: driver lock held for %s\n", diff)
 		debug.PrintStack()
 	}
 	s.graphLock.Unlock()

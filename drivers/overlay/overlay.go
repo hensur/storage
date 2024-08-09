@@ -17,6 +17,7 @@ import (
 	"strings"
 	"sync"
 	"syscall"
+	"time"
 
 	graphdriver "github.com/containers/storage/drivers"
 	"github.com/containers/storage/drivers/overlayutils"
@@ -1427,6 +1428,8 @@ func (d *Driver) Get(id string, options graphdriver.MountOpts) (string, error) {
 }
 
 func (d *Driver) get(id string, disableShifting bool, options graphdriver.MountOpts) (_ string, retErr error) {
+	beforeTime := time.Now()
+	fmt.Printf("MW2: begin driver get %s\n", time.Since(beforeTime))
 	dir, imageStore, inAdditionalStore := d.dir2(id)
 	if _, err := os.Stat(dir); err != nil {
 		return "", err
@@ -1832,9 +1835,11 @@ func (d *Driver) get(id string, disableShifting bool, options graphdriver.MountO
 
 	flags, data := mount.ParseOptions(mountData)
 	logrus.Debugf("overlay: mount_data=%s", mountData)
+	fmt.Printf("MW2: before mount syscall %s\n", time.Since(beforeTime))
 	if err := mountFunc("overlay", mountTarget, "overlay", uintptr(flags), data); err != nil {
 		return "", fmt.Errorf("creating overlay mount to %s, mount_data=%q: %w", mountTarget, mountData, err)
 	}
+	fmt.Printf("MW2: after mount syscall %s\n", time.Since(beforeTime))
 
 	return mergedDir, nil
 }

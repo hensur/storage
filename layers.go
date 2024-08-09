@@ -1449,6 +1449,9 @@ func (r *layerStore) Mount(id string, options drivers.MountOpts) (string, error)
 	// - r.layers[].MountPoint (directly and via loadMounts / saveMounts)
 	// - r.bymount (via loadMounts / saveMounts)
 
+	beforeTime := time.Now()
+	fmt.Printf("MW: begin mount %s\n", time.Since(beforeTime))
+
 	// check whether options include ro option
 	hasReadOnlyOpt := func(opts []string) bool {
 		for _, item := range opts {
@@ -1464,7 +1467,9 @@ func (r *layerStore) Mount(id string, options drivers.MountOpts) (string, error)
 	if !r.lockfile.IsReadWrite() && !hasReadOnlyOpt(options.Options) {
 		return "", fmt.Errorf("not allowed to update mount locations for layers at %q: %w", r.mountspath(), ErrStoreIsReadOnly)
 	}
+	fmt.Printf("MW: before mounts lock %s\n", time.Since(beforeTime))
 	r.mountsLockfile.Lock()
+	fmt.Printf("MW: got mounts lock %s\n", time.Since(beforeTime))
 	defer r.mountsLockfile.Unlock()
 	if err := r.reloadMountsIfChanged(); err != nil {
 		return "", err
@@ -1495,7 +1500,9 @@ func (r *layerStore) Mount(id string, options drivers.MountOpts) (string, error)
 			return "", fmt.Errorf("cannot mount layer %v: shifting not enabled", layer.ID)
 		}
 	}
+	fmt.Printf("MW: before driver get %s\n", time.Since(beforeTime))
 	mountpoint, err := r.driver.Get(id, options)
+	fmt.Printf("MW: after driver get %s\n", time.Since(beforeTime))
 	if mountpoint != "" && err == nil {
 		if layer.MountPoint != "" {
 			delete(r.bymount, layer.MountPoint)
@@ -1505,6 +1512,8 @@ func (r *layerStore) Mount(id string, options drivers.MountOpts) (string, error)
 		r.bymount[layer.MountPoint] = layer
 		err = r.saveMounts()
 	}
+
+	fmt.Printf("MW: return mount, unlock %s\n", time.Since(beforeTime))
 	return mountpoint, err
 }
 
